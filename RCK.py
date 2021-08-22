@@ -249,7 +249,8 @@ def drawHighlightCard(cardi, cardj, color):
 def makeUsedCardData(val):
     # 전달된 값을 2*4 리스트에 저장한다.
     usedCard = []
-    for i in range(2):        usedCard.append([val] * 4)
+    for i in range(2):
+        usedCard.append([val] * 4)
     return usedCard
 
 def makeClickedPieceData(val):
@@ -378,7 +379,7 @@ def isButtonPushed(x, y):
         return False
 
 def myPieceWin(mypiece, yourpiece):
-    # 두 말을 비교해 전자가 이기면 1, 아니면 0을 전달한다.
+    # 두 말을 비교해 전자가 이기면 1, 아니면 0을 반환한다.
     if mypiece[1] == yourpiece[1]:
         return 0                       
     elif mypiece[0] == ROCK:
@@ -444,6 +445,7 @@ def isWinner(piece, player):
         return True
 
 def showScreen(screen):
+    # 아무 키나 누르면 넘어가는 화면을 띄운다.
     global DISPLAYSURF
 
     DISPLAYSURF.blit(screen, (0, 0))

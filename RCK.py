@@ -3,7 +3,7 @@ from pygame.locals import *
 
 FPS = 30 # 초당 프레임
 WINDOWWIDTH = 759 # 윈도우의 너비 (이하 픽셀 단위)
-WINDOWHEIGHT = 512 # 윈도우의 높이
+WINDOWHEIGHT = 600 # 윈도우의 높이
 CARDWIDTH = 77 # 카드의 너비
 CARDHEIGHT = 108 # 카드의 높이
 CARDGAPWIDTH = 32 #카드 사이의 가로 간격
@@ -33,12 +33,15 @@ HIGHLIGHTPIECECOLOR2 = YELLOW
 ROCK = 'rock'
 SCISSOR = 'scissor'
 PAPER = 'paper'
-
+PLAYER1 = 0
+PLAYER2 = 1
     
 def main():
-    global DISPLAYSURF, ROCKCARD, SCISSORCARD, PAPERCARD
+    global DISPLAYSURF, FPSCLOCK, BOARD, UNCLICKEDBUTTON, CLICKEDBUTTON
+    global ROCKCARD, SCISSORCARD, PAPERCARD
     global ROCKPIECE_0, SCISSORPIECE_0, PAPERPIECE_0, ROCKPIECE_1, SCISSORPIECE_1, PAPERPIECE_1
-
+    global PLAYER1WIN, PLAYER2WIN
+    
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
@@ -48,7 +51,7 @@ def main():
     ROCKCARD = pygame.image.load('rockCard.png')
     SCISSORCARD = pygame.image.load('scissorCard.png')
     PAPERCARD = pygame.image.load('paperCard.png')
-    BUTTON = pygame.image.load('okButton.png')
+    UNCLICKEDBUTTON = pygame.image.load('okButton.png')
     CLICKEDBUTTON = pygame.image.load('okButtonClicked.png')
     ROCKPIECE_0 = pygame.image.load('rockPiece0.png')
     SCISSORPIECE_0 = pygame.image.load('scissorPiece0.png')
@@ -56,22 +59,69 @@ def main():
     ROCKPIECE_1 = pygame.image.load('rockPiece1.png')
     SCISSORPIECE_1 = pygame.image.load('scissorPiece1.png')
     PAPERPIECE_1 = pygame.image.load('paperPiece1.png')    
+    PLAYER1WIN = pygame.image.load('player1win.png')
+    PLAYER2WIN = pygame.image.load('player2win.png')
+
+    #while True:
+    #    if runGame() == False:
+    #        break
+    runGame()
     
-    mousex = 0 # 마우스 이벤트 발생 시 x좌표
-    mousey = 0 # 마우스 이벤트 발생 시 y좌표
+def runGame():
+    #
+    global mainCards, mainPiece
+    global PLAYER1WIN, PLAYER2WIN
 
     mainCards = getRandomizedCards() # 카드 정보(상대: [0][0:4], 자신: [1][0:4])
     mainPiece = pieceSetting() # 말 정보
+
+    turn = random.choice([PLAYER1, PLAYER2])
+
+    while True:
+        if turn == PLAYER1:
+            oneTurn(PLAYER1)
+            if isWinner(mainPiece, PLAYER1):
+                winningImg = PLAYER1WIN
+                break
+            turn = PLAYER2
+        elif turn == PLAYER2:
+            oneTurn(PLAYER2)
+            if isWinner(mainPiece, PLAYER2):
+                winningImg = PLAYER2WIN
+                break
+            turn = PLAYER1
+
+    while True:
+        DISPLAYSURF.blit(winningImg, (0, 0))
+        pygame.display.update()
+        FPSCLOCK.tick(FPS)
+        for event in pygame.event.get():
+            if event.type == QUIT or (event.type == KEYUP and event.key == K_ESCAPE):
+                pygame.quit()
+                sys.exit()
+            elif event.type == MOUSEBUTTONUP:
+                return
+        
+            
+
+def oneTurn(player):
+    # 
+    global DISPLAYSURF, FPSCLOCK, BOARD, UNCLICKEDBUTTON, CLICKEDBUTTON
+    global mainCards, mainPiece
+
+    mousex = 0 # 마우스 이벤트 발생 시 x좌표
+    mousey = 0 # 마우스 이벤트 발생 시 y좌표
+    
     usedCard = makeUsedCardData(False) # 해당 위치의 카드가 사용되었는지 확인
     clickedPiece = makeClickedPieceData(False) # 해당 위치의 말이 클릭되었는지 확인
     showedPiece = makeClickedPieceData(False) # 해당 위치의 말이 이동 가능한 경로인지 확인
-    
     buttonPushed = False # '확인' 버튼의 눌러짐 여부
     firstSelection = None # 처음 고른 카드의 종류 = 움직일 말과 카드의 종류
     selectedCardNum = 0 # 고른 카드의 갯수 = 말 움직이기의 남은 횟수
     pieceClicked = False # 말의 클릭 여부
     beforeMovePiece = [0, 0] # 클릭 된 말의 이동 전 좌표
-                                 
+    BUTTON = UNCLICKEDBUTTON
+                             
     while True: # 게임 루프        
         mouseClicked = False # 마우스 클릭 여부
 
@@ -95,7 +145,7 @@ def main():
 
         cardi, cardj = getCardAtPixel(mousex, mousey)
         # (사용: 카드를 클릭해서 하이라이트가 유지되는 상태, 선택: 마우스가 카드 위에 있으나 클릭은 하지 않은 상태)
-        if cardi != None and cardj != None and cardi ==1 and not buttonPushed: # 마우스가 카드 위에 있고 확인 버튼이 클릭되지 않았을 때
+        if cardi != None and cardj != None and cardi == player and not buttonPushed: # 마우스가 카드 위에 있고 확인 버튼이 클릭되지 않았을 때
             if not usedCard[cardi][cardj]: # 카드가 사용되지 않았을 때
                 if firstSelection == None or mainCards[cardi][cardj] == firstSelection:
                     drawHighlightCard(cardi, cardj, HIGHLIGHTCARDCOLOR)
@@ -119,7 +169,7 @@ def main():
             BUTTON = CLICKEDBUTTON
         
         piecei, piecej = getPieceAtPixel(mousex, mousey)
-        if piecei != None and piecej != None and mainPiece[piecei][piecej][1] and buttonPushed and mainPiece[piecei][piecej][0] == firstSelection and selectedCardNum > 0: # 마우스가 올바른 말 위에 있고 말이 이동 가능할 때
+        if piecei != None and piecej != None and mainPiece[piecei][piecej][1] == player and buttonPushed and mainPiece[piecei][piecej][0] == firstSelection and selectedCardNum > 0: # 마우스가 올바른 말 위에 있고 말이 이동 가능할 때
             if not clickedPiece[piecei][piecej] and not pieceClicked:
                 drawHighlightPiece(piecei, piecej, HIGHLIGHTPIECECOLOR1)
                 if mouseClicked:
@@ -140,8 +190,12 @@ def main():
             showedPiece = makeClickedPieceData(False)
             clickedPiece = makeClickedPieceData(False)
             pieceClicked = False
-            selectedCardNum -= 1             
-            
+            selectedCardNum -= 1
+        if buttonPushed and selectedCardNum == 0:
+            fillUsedCard(mainCards, usedCard)
+            BUTTON = UNCLICKEDBUTTON
+            break
+        
         pygame.display.update()
         FPSCLOCK.tick(FPS)
 
@@ -190,8 +244,7 @@ def drawHighlightCard(cardi, cardj, color):
 def makeUsedCardData(val):
     # 전달된 값을 2*4 리스트에 저장한다.
     usedCard = []
-    for i in range(2):
-        usedCard.append([val] * 4)
+    for i in range(2):        usedCard.append([val] * 4)
     return usedCard
 
 def makeClickedPieceData(val):
@@ -229,14 +282,15 @@ def drawRCKPiece(whichpiece, whosepiece, left, top):
     elif whichpiece == PAPER and whosepiece == 1:
         DISPLAYSURF.blit(PAPERPIECE_1, (left, top))
 
-def fillUsedCard(usedCard):
+def fillUsedCard(cards, usedCard):
     # 사용한 카드를 확인하고 새로 채워 넣는다.
-    left = LEFTCARDXPOS
-    top = LEFTCARDYPOS
-    for check in usedCard:
-        if check == 1:
-            drawCard(left, top)
-        left += (CARDWIDTH + CARDGAPWIDTH)
+    for cardi in range(2):
+        for cardj in range(4):
+            if usedCard[cardi][cardj]:
+                cards[cardi][cardj] = selectRCK()
+                drawCard(cards)
+                usedCard[cardi][cardj] = 0
+        
 
 def drawCard(cards):
     # 저장된 카드정보를 그리기 함수에 전달한다.
@@ -271,7 +325,7 @@ def showUsedCard(usedCard):
                 drawHighlightCard(cardi, cardj, HIGHLIGHTCARDCOLOR)
 
 def showShowedPiece(clickedPiece, piece):
-    #
+    # 클릭된 말의 이동 가능 경로를 보여준다.
     for piecei in range(7):
         for piecej in range(4):
             if clickedPiece[piecei][piecej]:
@@ -319,6 +373,7 @@ def isButtonPushed(x, y):
         return False
 
 def myPieceWin(mypiece, yourpiece):
+    # 두 말을 비교해 전자가 이기면 1, 아니면 0을 전달한다.
     if mypiece[1] == yourpiece[1]:
         return 0                       
     elif mypiece[0] == ROCK:
@@ -338,10 +393,12 @@ def myPieceWin(mypiece, yourpiece):
             return 0
 
 def drawHighlightPiece(piecei, piecej, color):
+    # 선택된 말 주변에 지정된 색을 그린다.
     left, top = getPixelAtPiece(piecei, piecej)
     pygame.draw.rect(DISPLAYSURF, color, (left - 0.5, top - 0.5, PIECEWIDTH + 2, PIECEHEIGHT + 2), 3)
 
 def showPossibleWay(piece, piecei, piecej):
+    # 한 말을 주변으로 이동 가능한 경로를 계산하고 맞으면 하이라이트를 그린다.
     jdiffstart = (piecei % 2) * (-1)
     for idiff in range(-1, 2, 2):
         for jdiff in range(jdiffstart, jdiffstart + 2):
@@ -353,6 +410,7 @@ def showPossibleWay(piece, piecei, piecej):
                 drawHighlightPiece(showi, showj, HIGHLIGHTPIECECOLOR2)
 
 def getShowedPiece(piece, piecei, piecej):
+    # showedPiece 리스트를 생성한다.
     showedPiece = makeClickedPieceData(False)
     jdiffstart = (piecei % 2) * (-1)
     for idiff in range(-1, 2, 2):
@@ -366,13 +424,21 @@ def getShowedPiece(piece, piecei, piecej):
     return showedPiece
 
 def movePiece(piece, beforepiecei, beforepiecej, afterpiecei, afterpiecej):
+    # 말을 움직인다.
     piece[afterpiecei][afterpiecej] = piece[beforepiecei][beforepiecej]
     piece[beforepiecei][beforepiecej] = [0, 0]
-    
-# 마우스로 좌표를 입력받아 카드가 있으면 띠를 두르고
-# 사용하면 사라지게 한다.
-# 그 후 fillUsedCard 함수를 사용하여 채워넣는다.
-    
+
+def isWinner(piece, player):
+    # 게임 종료를 확인한다.
+    oppenentpaper = 0
+    for cardi in range(7):
+        for cardj in range(4):
+            if piece[cardi][cardj] == [PAPER, not player]:
+                oppenentpaper = 1
+    if not oppenentpaper:
+        return True
+
+                    
 
 if __name__ == '__main__':
-    main()            
+    main()    

@@ -2,8 +2,10 @@ import pygame, sys, random, time
 from pygame.locals import *
 
 FPS = 30 # 초당 프레임
+FONTSIZE = 21
 WINDOWWIDTH = 759 # 윈도우의 너비 (이하 픽셀 단위)
-WINDOWHEIGHT = 600 # 윈도우의 높이
+WINDOWHEIGHT = 550 # 윈도우의 높이
+BOARDHEIGHT = 512
 CARDWIDTH = 77 # 카드의 너비
 CARDHEIGHT = 108 # 카드의 높이
 CARDGAPWIDTH = 32 #카드 사이의 가로 간격
@@ -16,7 +18,6 @@ PIECEGAPWIDTH = 27
 PIECEGAPHEIGHT = 7
 LEFTPIECEXPOS = [59, 25]
 TOPPIECEYPOS = 45
-
 
 #          R    G    B
 WHITE  = (255, 255, 255)
@@ -35,9 +36,14 @@ SCISSOR = 'scissor'
 PAPER = 'paper'
 PLAYER1 = 0
 PLAYER2 = 1
+
+TEXT1 = ['player1의 차례입니다. 사용할 카드를 선택하여 주십시오. 카드는 한 종류만 선택할 수 있으며, 개수는 자유입니다', 'player2의 차례입니다. 사용할 카드를 선택하여 주십시오. 카드는 한 종류만 선택할 수 있으며, 개수는 자유입니다']
+TEXT2 = '말을 클릭하고 이동할 경로를 다시 클릭하십시오. 다른 말을 움직이려면 다른 곳을 클릭하십시오. 이동 횟수는 사용한 카드만큼입니다.'
+HELPLIST = [TEXT1, TEXT2]
+
     
 def main():
-    global DISPLAYSURF, FPSCLOCK, BOARD, UNCLICKEDBUTTON, CLICKEDBUTTON
+    global DISPLAYSURF, FPSCLOCK, BOARD, FONT, UNCLICKEDBUTTON, CLICKEDBUTTON
     global ROCKCARD, SCISSORCARD, PAPERCARD
     global ROCKPIECE_0, SCISSORPIECE_0, PAPERPIECE_0, ROCKPIECE_1, SCISSORPIECE_1, PAPERPIECE_1
     global PLAYER1WIN, PLAYER2WIN
@@ -46,7 +52,9 @@ def main():
     FPSCLOCK = pygame.time.Clock()
     DISPLAYSURF = pygame.display.set_mode((WINDOWWIDTH, WINDOWHEIGHT))
     pygame.display.set_caption('R_C_K')
+    FONT = pygame.font.Font('HoonWhitecatR.ttf', FONTSIZE)
 
+    STARTSCREEN = pygame.image.load('startScreen.png')
     BOARD = pygame.image.load('board.png')
     ROCKCARD = pygame.image.load('rockCard.png')
     SCISSORCARD = pygame.image.load('scissorCard.png')
@@ -62,10 +70,10 @@ def main():
     PLAYER1WIN = pygame.image.load('player1win.png')
     PLAYER2WIN = pygame.image.load('player2win.png')
 
-    #while True:
-    #    if runGame() == False:
-    #        break
-    runGame()
+    showScreen(STARTSCREEN)
+    while True:
+        showScreen(runGame())
+    
     
 def runGame():
     #
@@ -91,16 +99,7 @@ def runGame():
                 break
             turn = PLAYER1
 
-    while True:
-        DISPLAYSURF.blit(winningImg, (0, 0))
-        pygame.display.update()
-        FPSCLOCK.tick(FPS)
-        for event in pygame.event.get():
-            if event.type == QUIT or (event.type == KEYUP and event.key == K_ESCAPE):
-                pygame.quit()
-                sys.exit()
-            elif event.type == MOUSEBUTTONUP:
-                return
+    return winningImg
         
             
 
@@ -121,6 +120,7 @@ def oneTurn(player):
     pieceClicked = False # 말의 클릭 여부
     beforeMovePiece = [0, 0] # 클릭 된 말의 이동 전 좌표
     BUTTON = UNCLICKEDBUTTON
+    HELPTEXT = HELPLIST[0][player]
                              
     while True: # 게임 루프        
         mouseClicked = False # 마우스 클릭 여부
@@ -128,6 +128,9 @@ def oneTurn(player):
         DISPLAYSURF.fill(WHITE)
         DISPLAYSURF.blit(BOARD, (0, 0))
         DISPLAYSURF.blit(BUTTON, (452, 213))
+        textSurf, textRect = makeText(HELPTEXT)
+        DISPLAYSURF.blit(textSurf, textRect)
+        
         drawCard(mainCards)
         showUsedCard(usedCard)
         drawPiece(mainPiece)
@@ -167,6 +170,7 @@ def oneTurn(player):
         if isButtonPushed(mousex, mousey) and mouseClicked: # 확인 버튼이 클릭되었을 때
             buttonPushed = True
             BUTTON = CLICKEDBUTTON
+            HELPTEXT = HELPLIST[1]
         
         piecei, piecej = getPieceAtPixel(mousex, mousey)
         if piecei != None and piecej != None and mainPiece[piecei][piecej][1] == player and buttonPushed and mainPiece[piecei][piecej][0] == firstSelection and selectedCardNum > 0: # 마우스가 올바른 말 위에 있고 말이 이동 가능할 때
@@ -198,6 +202,7 @@ def oneTurn(player):
         
         pygame.display.update()
         FPSCLOCK.tick(FPS)
+        
 
 def selectRCK():
     # 가위 바위 보 중 랜덤으로 하나를 뽑는다.
@@ -428,6 +433,14 @@ def movePiece(piece, beforepiecei, beforepiecej, afterpiecei, afterpiecej):
     piece[afterpiecei][afterpiecej] = piece[beforepiecei][beforepiecej]
     piece[beforepiecei][beforepiecej] = [0, 0]
 
+def makeText(text):
+    global FONT, HELPLIST
+
+    textSurf = FONT.render(text, True, BLACK, WHITE)
+    textRect = textSurf.get_rect()
+    textRect.center = (WINDOWWIDTH / 2, BOARDHEIGHT + (WINDOWHEIGHT - BOARDHEIGHT) / 2)
+    return (textSurf, textRect)
+
 def isWinner(piece, player):
     # 게임 종료를 확인한다.
     oppenentpaper = 0
@@ -438,7 +451,25 @@ def isWinner(piece, player):
     if not oppenentpaper:
         return True
 
-                    
+def showScreen(screen):
+    global DISPLAYSURF
+
+    DISPLAYSURF.blit(screen, (0, 0))
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == KEYDOWN:
+                if event.key == K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+                return
+
+        pygame.display.update()
+        FPSCLOCK.tick(FPS)
+
 
 if __name__ == '__main__':
     main()    
